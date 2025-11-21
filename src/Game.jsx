@@ -15,15 +15,12 @@ function Game({ category, onGameEnd, goBack }) {
     const [guess, setGuess] = useState("");
     const [status, setStatus] = useState("playing");
 
-    // --- UPDATED LOGIC ---
     const answer = question.answer.toUpperCase();
-    // Create a "pure" answer with only guessable chars
     const pureAnswer = answer.replace(/[^A-Z0-9]/g, '');
     const numGuessableBoxes = pureAnswer.length;
 
     const handleKey = (key) => {
         if (status !== "playing") return;
-        // Check against the number of *boxes*, not the full answer length
         if (guess.length < numGuessableBoxes) {
             setGuess(guess + key);
         }
@@ -40,10 +37,8 @@ function Game({ category, onGameEnd, goBack }) {
     };
 
     const handleSubmit = () => {
-        // Check against the number of *boxes*
         if (status !== "playing" || guess.length !== numGuessableBoxes) return;
 
-        // Compare the pure guess to the pure answer
         if (guess === pureAnswer) {
             setStatus("won");
             onGameEnd(true);
@@ -74,12 +69,11 @@ function Game({ category, onGameEnd, goBack }) {
             } else if (key === "BACKSPACE") {
                 handleDelete();
             } else if (key === " ") {
-                e.preventDefault(); // <-- Stop spacebar from doing anything
+                e.preventDefault();
             } else if (key.match(/^[A-Z0-9()]$/)) {
                 handleKey(key);
             }
         },
-        // eslint-disable-next-line react-hooks/exhaustive-deps
         [guess, status]
     );
 
@@ -89,27 +83,52 @@ function Game({ category, onGameEnd, goBack }) {
     }, [handleKeyDown]);
 
     return (
-        <div className="w-full">
-            <button onClick={goBack} className="bg-transparent text-blue-300 hover:text-blue-100 text-lg cursor-pointer float-left mb-2">
+        <div className="w-full p-4 bg-blue-700 rounded-xl shadow-2xl relative">
+            <button onClick={goBack} className="bg-transparent text-yellow-400 hover:text-white text-lg cursor-pointer float-left mb-4 font-semibold">
                 &larr; Change Category
             </button>
 
-            <div className="bg-blue-800 border border-blue-600 rounded-lg p-6 my-6 text-xl min-h-[100px] flex items-center justify-center clear-both">
-                <p>{question.definition}</p>
+            <div className="bg-blue-500 border border-blue-400 rounded-xl p-6 my-6 text-xl min-h-[100px] flex items-center justify-center clear-both shadow-md">
+                <p className="text-white">{question.definition}</p>
             </div>
 
-            {/* Grid now receives the pure guess and full answer */}
             <Grid guess={guess} answer={answer} status={status} />
 
-            {/* ... (end game message) ... */}
+            {/* --- NEW: POP-UP MODAL FOR RESULTS --- */}
+            {status !== "playing" && (
+                <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
+                    <div className={`p-8 rounded-2xl shadow-2xl border-4 border-white text-center max-w-sm w-full transform scale-110 ${status === "won" ? "bg-green-600" : "bg-red-600"}`}>
+                        <h2 className="text-4xl font-bold text-white mb-4">
+                            {status === "won" ? "Correct! 🎉" : "Game Over"}
+                        </h2>
 
+                        {/* Show answer if lost or gave up */}
+                        {(status === "reveal" || status === "lost") && (
+                            <div className="mb-6 p-2 bg-white bg-opacity-20 rounded-lg">
+                                <p className="text-white text-sm uppercase">The answer was:</p>
+                                <p className="text-2xl font-bold text-white tracking-widest">{answer}</p>
+                            </div>
+                        )}
+
+                        <button
+                            onClick={handleNext}
+                            className="w-full py-4 bg-white text-gray-900 rounded-xl text-xl font-bold hover:bg-gray-200 transition-colors shadow-lg"
+                        >
+                            Next Question &rarr;
+                        </button>
+                    </div>
+                </div>
+            )}
+            {/* ------------------------------------- */}
+
+            {/* Only show keyboard if playing */}
             {status === "playing" && (
                 <Keyboard
                     onKey={handleKey}
                     onClear={handleClear}
                     onDelete={handleDelete}
                     onSubmit={handleSubmit}
-                    onGiveUp={handleGiveUp} // Give Up is passed for solo
+                    onGiveUp={handleGiveUp}
                 />
             )}
         </div>

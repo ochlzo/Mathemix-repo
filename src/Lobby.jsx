@@ -6,7 +6,6 @@ import { doc, setDoc, getDoc, updateDoc, onSnapshot, arrayUnion } from "firebase
 import MultiplayerGame from "./MultiplayerGame.jsx";
 import { QUESTIONS } from "./data.js";
 
-// Helper function to generate a room code
 const generateRoomCode = () => {
     return Math.random().toString(36).substring(2, 7).toUpperCase();
 };
@@ -22,7 +21,6 @@ function Lobby({ goBack, user }) {
 
     const isHost = roomData?.hostId === user.uid;
 
-    // Real-time listener for the room
     useEffect(() => {
         if (!roomCode) return;
 
@@ -49,8 +47,6 @@ function Lobby({ goBack, user }) {
     }, [roomCode, view]);
 
 
-    // --- Button Handlers ---
-
     const handleHostGame = async () => {
         if (!nickname) {
             setError("Please enter a nickname.");
@@ -70,7 +66,7 @@ function Lobby({ goBack, user }) {
             hostName: nickname,
             roomCode: newRoomCode,
             players: [newPlayer],
-            category: "Number & Algebra", // Default category
+            category: "Number & Algebra",
             status: "waiting",
             currentQuestion: null,
             answers: [],
@@ -111,24 +107,18 @@ function Lobby({ goBack, user }) {
     const handleStartGame = async () => {
         if (!roomData) return;
 
-        const category = roomData.category; // Reads the category from Firestore
-
-        // --- UPDATED LOGIC ---
-        // Get the actual question object from the data file
+        const category = roomData.category;
         const question = QUESTIONS[category][Math.floor(Math.random() * QUESTIONS[category].length)];
 
         const roomRef = doc(db, "rooms", roomCode);
         await updateDoc(roomRef, {
             status: "playing",
-            currentQuestion: question, // Save the full question object
+            currentQuestion: question,
             roundStartTime: Date.now(),
             answers: [],
         });
     };
 
-
-
-    // NEW: Handler for when host changes the category
     const handleCategoryChange = async (newCategory) => {
         if (!isHost || !roomCode) return;
         const roomRef = doc(db, "rooms", roomCode);
@@ -136,8 +126,6 @@ function Lobby({ goBack, user }) {
             category: newCategory
         });
     };
-
-    // --- Render Logic ---
 
     if (gameStarted && roomData) {
         return (
@@ -152,30 +140,29 @@ function Lobby({ goBack, user }) {
     // RENDER: Host Lobby View
     if (view === "host") {
         return (
-            <div className="text-white">
-                <h2 className="text-2xl mb-4">Host Lobby</h2>
-                <div className="bg-blue-800 p-6 rounded-lg mb-6">
-                    <p className="text-lg mb-2">Share this code with your friends:</p>
-                    <h3 className="text-5xl font-bold tracking-widest bg-gray-900 p-4 rounded-lg text-center">
+            <div className="p-4 bg-mediumBlue rounded-xl shadow-2xl"> {/* New background, rounded corners, shadow */}
+                <h2 className="text-3xl font-bold mb-4 text-center text-white">Host Lobby</h2>
+                <div className="bg-lightBlue p-6 rounded-xl mb-6 shadow-md"> {/* New background, rounded, shadow */}
+                    <p className="text-lg mb-2 text-primaryText">Share this code with your friends:</p>
+                    <h3 className="text-5xl font-bold tracking-widest bg-darkBlue p-4 rounded-lg text-center text-highlightYellow"> {/* Darker background, highlight yellow */}
                         {roomCode}
                     </h3>
                 </div>
 
-                <h3 className="text-xl mb-2">Players Waiting ({roomData?.players.length || 0}):</h3>
-                <ul className="list-disc list-inside bg-blue-800 p-4 rounded-lg mb-6 min-h-[100px]">
+                <h3 className="text-xl mb-2 text-primaryText">Players Waiting ({roomData?.players.length || 0}):</h3>
+                <ul className="list-disc list-inside bg-lightBlue p-4 rounded-lg mb-6 min-h-[100px] shadow-sm"> {/* New background, rounded */}
                     {roomData?.players.map((p) => (
-                        <li key={p.uid}>
+                        <li key={p.uid} className="text-primaryText">
                             {p.nickname} {p.uid === user.uid && "⭐ (You)"}
                         </li>
                     ))}
                 </ul>
 
-                {/* --- THIS IS THE NEW DROPDOWN --- */}
-                <h3 className="text-xl mb-2">Select Category:</h3>
+                <h3 className="text-xl mb-2 text-primaryText">Select Category:</h3>
                 <select
                     value={roomData?.category || "Number & Algebra"}
                     onChange={(e) => handleCategoryChange(e.target.value)}
-                    className="w-full p-3 rounded-lg text-gray-900 mb-6 text-lg"
+                    className="w-full p-3 rounded-lg text-gray-900 mb-6 text-lg bg-gray-200 focus:outline-none focus:ring-2 focus:ring-lighterBlue"
                 >
                     {Object.keys(QUESTIONS).map((cat) => (
                         <option key={cat} value={cat}>{cat}</option>
@@ -184,7 +171,7 @@ function Lobby({ goBack, user }) {
 
                 <button
                     onClick={handleStartGame}
-                    className="w-full p-4 bg-green-600 rounded-lg font-bold text-xl"
+                    className="w-full py-4 bg-correctGreen hover:bg-green-500 rounded-lg text-xl font-bold text-white transition-transform transform hover:scale-105 shadow-md"
                 >
                     Start Game
                 </button>
@@ -195,76 +182,75 @@ function Lobby({ goBack, user }) {
     // RENDER: Joiner Lobby View
     if (view === "waiting") {
         return (
-            <div className="text-white">
-                <h2 className="text-2xl mb-4">Joined Room: {roomCode}</h2>
-                <h3 className="text-xl mb-2">Players in Lobby ({roomData?.players.length || 0}):</h3>
-                <ul className="list-disc list-inside bg-blue-800 p-4 rounded-lg mb-6 min-h-[100px]">
+            <div className="p-4 bg-mediumBlue rounded-xl shadow-2xl"> {/* New background, rounded corners, shadow */}
+                <h2 className="text-3xl font-bold mb-4 text-center text-white">Joined Room: {roomCode}</h2>
+                <h3 className="text-xl mb-2 text-primaryText">Players in Lobby ({roomData?.players.length || 0}):</h3>
+                <ul className="list-disc list-inside bg-lightBlue p-4 rounded-lg mb-6 min-h-[100px] shadow-sm"> {/* New background, rounded */}
                     {roomData?.players.map((p) => (
-                        <li key={p.uid}>
+                        <li key={p.uid} className="text-primaryText">
                             {p.nickname}
                             {p.uid === roomData.hostId && " (Host) ⭐"}
                             {p.uid === user.uid && " (You)"}
                         </li>
                     ))}
                 </ul>
-                <p className="text-2xl animate-pulse">Waiting for the host to start the game...</p>
+                <p className="text-2xl animate-pulse text-white text-center">Waiting for the host to start the game...</p>
             </div>
         );
     }
 
     // RENDER: Default Select View (Host or Join)
     return (
-        <div className="text-white">
-            <button onClick={goBack} className="bg-transparent text-blue-300 hover:text-blue-100 text-lg cursor-pointer float-left mb-2">
+        <div className="p-4 bg-mediumBlue rounded-xl shadow-2xl"> {/* New background, rounded corners, shadow */}
+            <button onClick={goBack} className="bg-transparent text-highlightYellow hover:text-white text-lg cursor-pointer float-left mb-4 font-semibold">
                 &larr; Back to Mode Select
             </button>
 
             {error && (
-                <p className="bg-red-600 p-3 rounded-lg text-lg clear-both">{error}</p>
+                <p className="bg-wrongRed p-3 rounded-lg text-lg clear-both text-white">{error}</p>
             )}
 
-            {/* Shared Nickname Input */}
             <div className="my-6 clear-both">
-                <label htmlFor="nickname" className="text-xl block mb-2">Enter Your Nickname</label>
+                <label htmlFor="nickname" className="text-xl block mb-2 text-white">Enter Your Nickname</label>
                 <input
                     id="nickname"
                     type="text"
                     placeholder="e.g., MathWiz"
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
-                    className="w-full p-3 rounded-lg text-gray-900 text-lg"
+                    className="w-full p-3 rounded-lg text-gray-900 text-lg bg-gray-200 focus:outline-none focus:ring-2 focus:ring-lighterBlue"
                 />
             </div>
 
-            <div className="flex flex-col md:flex-row gap-6">
+            <div className="flex flex-col md:flex-row gap-6 mt-8">
                 {/* Host Game Box */}
-                <div className="flex-1 bg-blue-800 p-6 rounded-lg">
-                    <h2 className="text-2xl mb-4">Host a Game</h2>
-                    <p className="mb-4">Create a new room and get a code to share with friends.</p>
+                <div className="flex-1 bg-lightBlue p-6 rounded-xl shadow-md"> {/* New background, rounded, shadow */}
+                    <h2 className="text-2xl mb-4 text-white">Host a Game</h2>
+                    <p className="mb-6 text-primaryText">Create a new room and get a code to share with friends.</p>
                     <button
                         onClick={handleHostGame}
-                        className="w-full p-4 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold text-lg"
+                        className="w-full py-4 bg-lighterBlue hover:bg-white hover:text-darkBlue rounded-lg text-xl font-bold text-white transition-transform transform hover:scale-105 shadow-md"
                     >
                         Create Room
                     </button>
                 </div>
 
                 {/* Join Game Box */}
-                <div className="flex-1 bg-blue-800 p-6 rounded-lg">
-                    <h2 className="text-2xl mb-4">Join a Game</h2>
-                    <label htmlFor="roomCode" className="block mb-2">Enter Room Code:</label>
+                <div className="flex-1 bg-lightBlue p-6 rounded-xl shadow-md"> {/* New background, rounded, shadow */}
+                    <h2 className="text-2xl mb-4 text-white">Join a Game</h2>
+                    <label htmlFor="roomCode" className="block mb-2 text-primaryText">Enter Room Code:</label>
                     <input
                         id="roomCode"
                         type="text"
                         placeholder="ABC12"
                         value={joinInput}
                         onChange={(e) => setJoinInput(e.target.value.toUpperCase())}
-                        className="w-full p-3 rounded-lg text-gray-900 text-lg uppercase"
+                        className="w-full p-3 rounded-lg text-gray-900 text-lg uppercase bg-gray-200 focus:outline-none focus:ring-2 focus:ring-lighterBlue"
                         maxLength={5}
                     />
                     <button
                         onClick={handleJoinGame}
-                        className="w-full p-4 mt-4 bg-green-600 hover:bg-green-500 rounded-lg font-bold text-lg"
+                        className="w-full py-4 mt-6 bg-correctGreen hover:bg-green-500 rounded-lg text-xl font-bold text-white transition-transform transform hover:scale-105 shadow-md"
                     >
                         Join Room
                     </button>
