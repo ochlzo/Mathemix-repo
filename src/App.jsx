@@ -1,71 +1,59 @@
 // src/App.jsx
 
 import React, { useState, useEffect } from "react";
-import Game from "./Game.jsx";
-import Lobby from "./Lobby.jsx";
-import ModeSelect from "./ModeSelect.jsx";
-import LoginPage from "./LoginPage.jsx";
-import CreateAccountPage from "./CreateAccountPage.jsx";
-import { QUESTIONS } from "./data.js"; // <--- FIXED: Changed '=>' to 'from'
+import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
+import Game from "./pages/Game.jsx";
+import Lobby from "./pages/Lobby.jsx";
+import ModeSelect from "./pages/ModeSelect.jsx";
+import LoginPage from "./pages/LoginPage.jsx";
 import { auth, db } from "./firebaseConfig.js";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { doc, setDoc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 
 function App() {
     const [currentUser, setCurrentUser] = useState(null);
     const [username, setUsername] = useState("");
     const [loading, setLoading] = useState(true);
-    const [showCreateAccount, setShowCreateAccount] = useState(false);
 
-    const [gameMode, setGameMode] = useState(null);
-    const [selectedCategory, setSelectedCategory] = useState(null);
+    const navigate = useNavigate();
+    const location = useLocation(); // <--- We use this to check the current page
 
-    const [currentStreak, setCurrentStreak] = useState(0);
-    const [longestStreak, setLongestStreak] = useState(0);
+    // Check if we are on the login page
+    const isLoginPage = location.pathname === "/";
 
+    // Auth Listener
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (user) {
                 setCurrentUser(user);
                 const userDocRef = doc(db, "users", user.uid);
-                const unsubDoc = onSnapshot(userDocRef, (docSnap) => {
+                onSnapshot(userDocRef, (docSnap) => {
                     if (docSnap.exists()) {
-                        const userData = docSnap.data();
-                        setUsername(userData.username || "");
-                        setLongestStreak(userData.longestStreak || 0);
+                        setUsername(docSnap.data().username || "");
                     }
                 });
+
+                // If user is logged in but on the login page, send them to menu
+                if (location.pathname === "/") {
+                    navigate("/mode-select");
+                }
+
             } else {
                 setCurrentUser(null);
                 setUsername("");
-                setLongestStreak(0);
-                setCurrentStreak(0);
-                setGameMode(null);
-                setSelectedCategory(null);
+                // If user is logged out, send them to login
+                if (location.pathname !== "/") {
+                    navigate("/");
+                }
             }
             setLoading(false);
         });
         return () => unsubscribe();
-    }, []);
+    }, [auth]); // Removed location dependence to prevent loops
 
-    const handleLogout = () => {
-        signOut(auth);
-    };
-
-    const handleSoloGameEnd = async (didWin) => {
-        if (!currentUser) return;
-        const userDocRef = doc(db, "users", currentUser.uid);
-
-        if (didWin) {
-            const newStreak = currentStreak + 1;
-            setCurrentStreak(newStreak);
-            if (newStreak > longestStreak) {
-                setLongestStreak(newStreak);
-                await setDoc(userDocRef, { longestStreak: newStreak }, { merge: true });
-            }
-        } else {
-            setCurrentStreak(0);
-        }
+    const handleLogout = async () => {
+        await signOut(auth);
+        navigate("/");
     };
 
     if (loading) {
@@ -76,79 +64,41 @@ function App() {
         );
     }
 
-    // If NOT logged in, show Login or Create Account.
-    // These components handle their own full-width layout.
-// 1. If NOT logged in, show Login or Create Account
-    // 1. If NOT logged in, show the unified Login Page
-    if (!currentUser) {
-        return <LoginPage />;
-    }
-    // If Logged in, show the app with max-width and padding.
     return (
-        <div className="bg-[#023e8a] text-white min-h-screen p-4 font-sans">
-            <div className="max-w-4xl mx-auto text-center">
+        // FIX: Only apply the Blue Background and Padding if we are NOT on the Login Page
+        <div className={isLoginPage ? "font-nunito" : "bg-[#023e8a] text-white min-h-screen p-4 font-sans"}>
 
-                {/* Header */}
-                <header className="border-b border-gray-600 pb-4 mb-6 relative">
-                    <button
-                        onClick={handleLogout}
-                        className="absolute top-0 right-0 bg-red-700 hover:bg-red-600 text-white px-3 py-1 rounded-md text-sm"
-                    >
-                        Logout
-                    </button>
-                    <h1 className="text-4xl font-bold tracking-wider">Mathemix 🧮</h1>
+            {/* FIX: Only apply the centered max-width container if we are NOT on the Login Page */}
+            <div className={isLoginPage ? "" : "max-w-4xl mx-auto text-center"}>
 
-                    {/* Only show stats in Solo Mode */}
-                    {gameMode === 'solo' && (
-                        <div className="flex justify-around text-lg mt-4">
-                            <span>Streak: {currentStreak}</span>
-                            <span>Longest Streak: {longestStreak}</span>
-                        </div>
-                    )}
-                </header>
-
-                {/* Content Area based on Game Mode */}
-                {gameMode === "solo" ? (
-                    selectedCategory ? (
-                        <Game
-                            category={selectedCategory}
-                            onGameEnd={handleSoloGameEnd}
-                            goBack={() => setSelectedCategory(null)}
-                        />
-                    ) : (
-                        <div className="mt-10">
-                            <button
-                                onClick={() => setGameMode(null)}
-                                className="bg-transparent text-blue-300 hover:text-blue-100 text-lg cursor-pointer float-left mb-2"
-                            >
-                                &larr; Back to Mode Select
-                            </button>
-                            <h2 className="text-2xl mb-6 clear-both">Select a Category</h2>
-                            {Object.keys(QUESTIONS).map((cat) => (
-                                <button
-                                    key={cat}
-                                    onClick={() => {
-                                        setSelectedCategory(cat);
-                                        setCurrentStreak(0);
-                                    }}
-                                    className="block w-full p-5 text-lg mb-4 bg-blue-700 hover:bg-blue-600 rounded-lg cursor-pointer transition-colors"
-                                >
-                                    {cat}
-                                </button>
-                            ))}
-                        </div>
-                    )
-                ) : gameMode === "multiplayer" ? (
-                    <Lobby
-                        goBack={() => setGameMode(null)}
-                        user={currentUser}
-                    />
-                ) : (
-                    <ModeSelect
-                        username={username}
-                        onSelectMode={(mode) => setGameMode(mode)}
-                    />
+                {/* Header (Only show if logged in and NOT on login page) */}
+                {!isLoginPage && currentUser && (
+                    <header className="border-b border-gray-600 pb-4 mb-6 relative">
+                        <button
+                            onClick={handleLogout}
+                            className="absolute top-0 right-0 bg-red-700 hover:bg-red-600 text-white px-3 py-1 rounded-md text-sm"
+                        >
+                            Logout
+                        </button>
+                        <h1 className="text-4xl font-bold tracking-wider">Mathemix 🧮</h1>
+                    </header>
                 )}
+
+                {/* ROUTER SWITCHING */}
+                <Routes>
+                    {/* Route: Login Page (Root) */}
+                    <Route path="/" element={<LoginPage />} />
+
+                    {/* Route: Mode Selection */}
+                    <Route path="/mode-select" element={<ModeSelect username={username} />} />
+
+                    {/* Route: Solo Game */}
+                    <Route path="/game" element={<Game />} />
+
+                    {/* Route: Multiplayer Lobby */}
+                    <Route path="/lobby" element={<Lobby user={currentUser} />} />
+                </Routes>
+
             </div>
         </div>
     );
